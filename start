@@ -107,36 +107,38 @@ function pollUntilMasterNodeAlive() {
 
 # Boot Strap Chain Data
 
-echo -e "\e[1;34mStopping nodemon and energi3 \e[0m"  
+echo -e "\e[1;34mStopping nodemon and energi3\e[0m"  
 sudo systemctl stop nodemon.timer --now
 sudo systemctl stop energi3
 
-echo -e "\e[1;34mRemoving energi3 DB \e[0m"  
+echo -e "\e[1;34mRemoving energi3 DB\e[0m"  
 echo "yes" | energi3 removedb
 
-echo -e "\e[1;34mDownloading energi3 chaindata \e[0m"
+echo -e "\e[1;34mDownloading energi3 chaindata\e[0m"
 curl https://s3-us-west-2.amazonaws.com/download.energi.software/releases/chaindata/mainnet/gen3-chaindata.tar.gz | tar xz
 
-echo -e "\e[1;34mStarting nodemon and energi3 \e[0m"
+echo -e "\e[1;34mStarting nodemon and energi3\e[0m"
 sudo systemctl start energi3
 sudo systemctl start nodemon.timer
 
-echo -e "\e[1;34mSleeping for 10 seconds \e[0m"
+echo -e "\e[1;34mSleeping for 10 seconds\e[0m"
 sleep 10
 
-echo -e "\e[1;34mUnlocking Core Node for Staking: Standby to Enter the Password \e[0m"
+echo -e "\e[1;34mUnlocking Core Node for Staking: Standby to Enter the Password\e[0m"
 energi3 --exec "personal.unlockAccount('0xBAe2e40a2EF0efDAE4f84fFc0a2e18Ebf7CE4f4D', null, 0, true)" attach
 
-echo -e "\e[1;34mPolling Node Staking Status \e[0m"
+echo -e "\e[1;34mPolling Node Staking Status\e[0m"
 pollUntilNodeStaking > /dev/null &
 spinner $!
+echo -e "\e[1;34mNode Is Staking!\e[0m"
 
-echo -e "\e[1;34mAnnouncing Masternode: Standby to Enter the Password \e[0m"
+echo -e "\e[1;34mAnnouncing Masternode: Standby to Enter the Password\e[0m"
 MASTERNODE_ENODE=$(energi3 --exec "admin.nodeInfo.enode" attach)
 energi3 --exec "masternode.announce('0xBAe2e40a2EF0efDAE4f84fFc0a2e18Ebf7CE4f4D', $MASTERNODE_ENODE, null)"
 
-echo -e "\e[1;34mPolling MasterNode Alive Status \e[0m"
+echo -e "\e[1;34mPolling MasterNode Alive Status\e[0m"
 pollUntilMasterNodeAlive > /dev/null &
 spinner $!
+echo -e "\e[1;34mMasternode Is Alive!\e[0m"
 
 # if [ "$OUTPUT" = "true" ]; then echo "it is true!"; else echo "it is false!";  fi;
