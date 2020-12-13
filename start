@@ -1,0 +1,142 @@
+#!/bin/bash
+
+#!/bin/bash
+# Shows a spinner while another command is running. Randomly picks one of 12 spinner styles.
+# @args command to run (with any parameters) while showing a spinner. 
+#       E.g. ‹spinner sleep 10›
+# Credit: https://unix.stackexchange.com/a/565551
+
+function shutdown() {
+  tput cnorm # reset cursor
+}
+trap shutdown EXIT
+
+function cursorBack() {
+  echo -en "\033[$1D"
+}
+
+function spinner() {
+  # make sure we use non-unicode character type locale 
+  # (that way it works for any locale as long as the font supports the characters)
+  local LC_CTYPE=C
+
+  local pid=$1 # Process Id of the previous running command
+
+  case $((11)) in
+  0)
+    local spin='⠁⠂⠄⡀⢀⠠⠐⠈'
+    local charwidth=3
+    ;;
+  1)
+    local spin='-\|/'
+    local charwidth=1
+    ;;
+  2)
+    local spin="▁▂▃▄▅▆▇█▇▆▅▄▃▂▁"
+    local charwidth=3
+    ;;
+  3)
+    local spin="▉▊▋▌▍▎▏▎▍▌▋▊▉"
+    local charwidth=3
+    ;;
+  4)
+    local spin='←↖↑↗→↘↓↙'
+    local charwidth=3
+    ;;
+  5)
+    local spin='▖▘▝▗'
+    local charwidth=3
+    ;;
+  6)
+    local spin='┤┘┴└├┌┬┐'
+    local charwidth=3
+    ;;
+  7)
+    local spin='◢◣◤◥'
+    local charwidth=3
+    ;;
+  8)
+    local spin='◰◳◲◱'
+    local charwidth=3
+    ;;
+  9)
+    local spin='◴◷◶◵'
+    local charwidth=3
+    ;;
+  10)
+    local spin='◐◓◑◒'
+    local charwidth=3
+    ;;
+  11)
+    local spin='⣾⣽⣻⢿⡿⣟⣯⣷'
+    local charwidth=3
+    ;;
+  esac
+
+  local i=0
+  tput civis # cursor invisible
+  while kill -0 $pid 2>/dev/null; do
+    local i=$(((i + $charwidth) % ${#spin}))
+    printf "%s" "${spin:$i:$charwidth}"
+
+    cursorBack 1
+    sleep .1
+  done
+  tput cnorm
+  wait $pid # capture exit code
+  return $?
+}
+
+function pollUntilNodeStaking() {
+    IS_MINER_STAKING=$(energi3 --exec "miner.stakingStatus().miner && miner.stakingStatus().staking" attach)
+    while [ "$IS_MINER_STAKING" = "false" ]
+    do
+        sleep 30
+        IS_MINER_STAKING=$(energi3 --exec "miner.stakingStatus().miner && miner.stakingStatus().staking" attach)
+    done
+}
+
+function pollUntilMasterNodeAlive() {
+    IS_MASTER_NODE_ALIVE=$(energi3 --exec "masternode.masternodeInfo('0xBAe2e40a2EF0efDAE4f84fFc0a2e18Ebf7CE4f4D').isAlive && masternode.masternodeInfo('0xBAe2e40a2EF0efDAE4f84fFc0a2e18Ebf7CE4f4D').isActive" attach)
+    while [ "$IS_MINER_STAKING" = "false" ]
+    do
+        sleep 30
+        IS_MASTER_NODE_ALIVE=$(energi3 --exec "masternode.masternodeInfo('0xBAe2e40a2EF0efDAE4f84fFc0a2e18Ebf7CE4f4D').isAlive && masternode.masternodeInfo('0xBAe2e40a2EF0efDAE4f84fFc0a2e18Ebf7CE4f4D').isActive" attach)
+    done 
+}
+
+# Boot Strap Chain Data
+
+echo -e "\e[1;34mStopping nodemon and energi3 \e[0m"  
+sudo systemctl stop nodemon.timer --now
+sudo systemctl stop energi3
+
+echo -e "\e[1;34mRemoving energi3 DB \e[0m"  
+echo "yes" | energi3 removedb
+
+echo -e "\e[1;34mDownloading energi3 chaindata \e[0m"
+curl https://s3-us-west-2.amazonaws.com/download.energi.software/releases/chaindata/mainnet/gen3-chaindata.tar.gz | tar xz
+
+echo -e "\e[1;34mStarting nodemon and energi3 \e[0m"
+sudo systemctl start energi3
+sudo systemctl start nodemon.timer
+
+echo -e "\e[1;34mSleeping for 10 seconds \e[0m"
+sleep 10
+
+echo -e "\e[1;34mUnlocking Core Node for Staking: Standby to Enter the Password \e[0m"
+energi3 --exec "personal.unlockAccount('0xBAe2e40a2EF0efDAE4f84fFc0a2e18Ebf7CE4f4D', null, 0, true)" attach
+
+echo -e "\e[1;34mPolling Node Staking Status \e[0m"
+pollUntilNodeStaking > /dev/null &
+spinner $!
+
+echo -e "\e[1;34mAnnouncing Masternode: Standby to Enter the Password \e[0m"
+MASTERNODE_ENODE=$(energi3 --exec "admin.nodeInfo.enode" attach)
+energi3 --exec "masternode.announce('0xBAe2e40a2EF0efDAE4f84fFc0a2e18Ebf7CE4f4D', $MASTERNODE_ENODE, null)"
+
+echo -e "\e[1;34mPolling MasterNode Alive Status \e[0m"
+pollUntilMasterNodeAlive > /dev/null &
+spinner $!
+
+# if [ "$OUTPUT" = "true" ]; then echo "it is true!"; else echo "it is false!";  fi;
