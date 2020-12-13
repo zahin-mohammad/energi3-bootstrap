@@ -134,7 +134,7 @@ echo -e "\e[1;34mNode Is Staking!\e[0m"
 
 echo -e "\e[1;34mAnnouncing Masternode: Standby to Enter the Password\e[0m"
 MASTERNODE_ENODE=$(energi3 --exec "admin.nodeInfo.enode" attach)
-energi3 --exec "masternode.announce('0xBAe2e40a2EF0efDAE4f84fFc0a2e18Ebf7CE4f4D', $MASTERNODE_ENODE, null)"
+energi3 --exec "masternode.announce('0xBAe2e40a2EF0efDAE4f84fFc0a2e18Ebf7CE4f4D', $MASTERNODE_ENODE, null)" attach
 
 echo -e "\e[1;34mPolling MasterNode Alive Status\e[0m"
 pollUntilMasterNodeAlive > /dev/null &
